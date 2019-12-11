@@ -20,6 +20,11 @@ static const int PowerLimitTimeout = 120;
 // the power limiter was 1%. New Versions support precision of 0.01%. However, since a change in
 // the algorithm in hub4control, 1% should only work.
 static const int PowerLimitScale = 100;
+// Fronius inverters send a null payload during certain solar net timeouts. We
+// want to filter for those.
+static const QVector<quint16> FroniusNullFrame = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 10 };
 
 SunspecUpdater::SunspecUpdater(Inverter *inverter, InverterSettings *settings, QObject *parent):
 	QObject(parent),
@@ -235,9 +240,16 @@ void SunspecUpdater::onReadCompleted()
 		} else {
 			if (values.size() != 52)
 				break;
-			// In older versions of the Fronius firmware, power value and its scaling were sometimes
-			// 0 even when it was obvious that the value should have been different. It seemed to
-			// be indicating some kind of error situation.
+
+			// When there are communication timeouts between a Fronius
+			// datamanager and the PV-inverters, we will sometimes receive a
+			// frame consisting entirely of zeroes, except for an operating
+			// state of 7 (Fault) and a vendor state of 10. Fronius recommended
+			// that we simply filter these values.
+			if ((mInverter->quirks() & QuirkIgnoreNullFrames) &&
+					values.mid(2, 38) == FroniusNullFrame)
+				break;
+
 			double power = getScaledValue(values, 14, 1, 15, true);
 			if (qIsFinite(power)) {
 				CommonInverterData cid;

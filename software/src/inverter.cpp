@@ -22,7 +22,8 @@ Inverter::Inverter(VeQItem *root, const DeviceInfo &deviceInfo, int deviceInstan
 	mMeanPowerInfo(new BasicPowerInfo(root->itemGetOrCreate("Ac", false), this)),
 	mL1PowerInfo(new PowerInfo(root->itemGetOrCreate("Ac/L1", false), this)),
 	mL2PowerInfo(new PowerInfo(root->itemGetOrCreate("Ac/L2", false), this)),
-	mL3PowerInfo(new PowerInfo(root->itemGetOrCreate("Ac/L3", false), this))
+	mL3PowerInfo(new PowerInfo(root->itemGetOrCreate("Ac/L3", false), this)),
+	mQuirks(0)
 {
 	produceValue(createItem("Connected"), 1);
 	produceValue(createItem("Mgmt/ProcessName"), QCoreApplication::arguments()[0]);
@@ -228,6 +229,11 @@ QString Inverter::location() const
 		arg(mDeviceInfo.uniqueId).
 		arg(mDeviceInfo.hostName).
 		arg(mDeviceInfo.networkId);
+}
+
+void Inverter::setQuirks(int quirks)
+{
+	mQuirks |= quirks;
 }
 
 void Inverter::updateConnectionItem()

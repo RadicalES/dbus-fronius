@@ -7,6 +7,11 @@
 class PowerInfo;
 class BasicPowerInfo;
 
+enum InverterQuirk {
+	QuirkIgnoreNullFrames = 1  // Fronius inverters sometimes send runt null
+							   // frames with an error
+};
+
 class Inverter : public VeService
 {
 	Q_OBJECT
@@ -76,6 +81,15 @@ public:
 	/// Returns a string describing the location ('<serial>@<ip-address>:<port>').
 	QString location() const;
 
+	int quirks() const
+	{
+		return mQuirks;
+	}
+
+
+protected:
+	void setQuirks(int quirks);
+
 signals:
 	void isConnectedChanged();
 
@@ -104,6 +118,8 @@ private:
 	PowerInfo *mL1PowerInfo;
 	PowerInfo *mL2PowerInfo;
 	PowerInfo *mL3PowerInfo;
+
+	int mQuirks;
 };
 
 #endif // INVERTER_H

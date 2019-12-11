@@ -6,4 +6,5 @@ FroniusInverter::FroniusInverter(VeQItem *root, const DeviceInfo &deviceInfo,
 	Inverter(root, deviceInfo, deviceInstance, parent)
 {
 	produceValue(createItem("FroniusDeviceType"), deviceInfo.deviceType);
+	setQuirks(QuirkIgnoreNullFrames);
 }
