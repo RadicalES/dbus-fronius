@@ -22,7 +22,8 @@ enum InverterPosition {
 enum ProtocolType {
 	ProtocolFroniusSolarApi,
 	ProtocolSunSpecFloat,
-	ProtocolSunSpecIntSf
+    ProtocolSunSpecIntSf,
+    ProtocolSMA,
 };
 
 struct DeviceInfo

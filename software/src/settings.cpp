@@ -6,12 +6,24 @@
 
 Settings::Settings(VeQItem *root, QObject *parent) :
 	VeQItemConsumer(root, parent),
+    mGridCode(connectItem("GridCode", 3989934552, SIGNAL(gridCodeChanged()), false)),
+    mUnitId(connectItem("UnitId", 3, SIGNAL(unitIdChanged()), false)),
 	mPortNumber(connectItem("PortNumber", 80, SIGNAL(portNumberChanged()), false)),
 	mIpAddresses(connectItem("IPAddresses", "", SIGNAL(ipAddressesChanged()), false)),
 	mKnownIpAddresses(connectItem("KnownIPAddresses", "", 0, false)),
 	mInverterIds(connectItem("InverterIds", "", SLOT(onInverterdIdsChanged()), false)),
 	mAutoScan(connectItem("AutoScan", 1, 0))
 {
+}
+
+int Settings::unitId() const
+{
+    return mUnitId->getValue().toInt();
+}
+
+uint32_t Settings::gridCode() const
+{
+    return mGridCode->getValue().toUInt();
 }
 
 int Settings::portNumber() const

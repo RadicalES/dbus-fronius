@@ -6,6 +6,7 @@
 #include "settings.h"
 #include "solar_api_detector.h"
 #include "sunspec_detector.h"
+#include "sma_detector.h"
 #include "ve_qitem_init_monitor.h"
 
 DBusFronius::DBusFronius(QObject *parent) :
@@ -41,7 +42,8 @@ int DBusFronius::handleSetValue(VeQItem *item, const QVariant &variant)
 void DBusFronius::onSettingsInitialized()
 {
 	mGateway->addDetector(new SolarApiDetector(mSettings, this));
-	mGateway->addDetector(new SunspecDetector(126, this));
+    mGateway->addDetector(new SunspecDetector(126, this));
+    mGateway->addDetector(new SMADetector(mSettings, this));
 	mGateway->initializeSettings();
 	onScanProgressChanged();
 	onAutoDetectChanged();

@@ -16,6 +16,10 @@ class Settings : public VeQItemConsumer
 public:
 	explicit Settings(VeQItem *root, QObject *parent = 0);
 
+    int unitId() const;
+
+    uint32_t gridCode() const;
+
 	int portNumber() const;
 
 	QList<QHostAddress> ipAddresses() const;
@@ -51,6 +55,10 @@ public:
 	static QString createInverterId(const QString &deviceSerial);
 
 signals:
+    void unitIdChanged();
+
+    void gridCodeChanged();
+
 	void portNumberChanged();
 
 	void ipAddressesChanged();
@@ -63,6 +71,8 @@ private:
 
 	QString fromAddressList(const QList<QHostAddress> &a);
 
+    VeQItem *mGridCode;
+    VeQItem *mUnitId;
 	VeQItem *mPortNumber;
 	VeQItem *mIpAddresses;
 	VeQItem *mKnownIpAddresses;
