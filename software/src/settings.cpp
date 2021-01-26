@@ -6,7 +6,7 @@
 
 Settings::Settings(VeQItem *root, QObject *parent) :
 	VeQItemConsumer(root, parent),
-    mGridCode(connectItem("GridCode", 3989934552, SIGNAL(gridCodeChanged()), false)),
+    mGridCode(connectItem("GridCode", 0, SIGNAL(gridCodeChanged()), false)),
     mUnitId(connectItem("UnitId", 3, SIGNAL(unitIdChanged()), false)),
 	mPortNumber(connectItem("PortNumber", 80, SIGNAL(portNumberChanged()), false)),
 	mIpAddresses(connectItem("IPAddresses", "", SIGNAL(ipAddressesChanged()), false)),

@@ -77,7 +77,10 @@ SOURCES += \
     src/gateway_interface.cpp \
     src/sunspec_updater.cpp \
     src/solar_api_updater.cpp \
-    src/data_processor.cpp
+    src/data_processor.cpp \
+    src/sma_detector.cpp \
+    src/sma_inverter.cpp \
+    src/sma_updater.cpp
 
 HEADERS += \
     src/froniussolar_api.h \
@@ -107,7 +110,10 @@ HEADERS += \
     src/gateway_interface.h \
     src/sunspec_updater.h \
     src/solar_api_updater.h \
-    src/data_processor.h
+    src/data_processor.h \
+    src/sma_detector.h \
+    src/sma_inverter.h \
+    src/sma_updater.h
 
 DISTFILES += \
     ../README.md
