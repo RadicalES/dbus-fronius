@@ -214,6 +214,7 @@ void Inverter::setPowerLimit(double p)
 int Inverter::handleSetValue(VeQItem *item, const QVariant &variant)
 {
 	if (item == mPowerLimit) {
+        QLOG_INFO() << "SET POWER LIMIT:" << variant.toDouble();
 		emit powerLimitRequested(variant.toDouble());
 		return 0;
 	}
@@ -234,9 +235,22 @@ QString Inverter::location() const
 
 void Inverter::updateConnectionItem()
 {
+    QString apistr = "solarapi";
+
+    if(mDeviceInfo.retrievalMode == ProtocolSunSpecFloat) {
+        apistr = "sunspec-f";
+    }
+    else if(mDeviceInfo.retrievalMode == ProtocolSunSpecFloat) {
+        apistr = "sunspec-i";
+    }
+    else if(mDeviceInfo.retrievalMode == ProtocolSMA) {
+        apistr = "sma-pv";
+    }
+
+
 	produceValue(mConnection, QString("%1 - %2 (%3)").
 		arg(mDeviceInfo.hostName).arg(mDeviceInfo.networkId).
-		arg(mDeviceInfo.retrievalMode == ProtocolFroniusSolarApi ? "solarapi" : "sunspec"));
+        arg(apistr));
 }
 
 bool Inverter::validateSunspecMonitorFrame(QVector<quint16> frame)

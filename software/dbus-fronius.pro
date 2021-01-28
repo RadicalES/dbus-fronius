@@ -80,7 +80,8 @@ SOURCES += \
     src/data_processor.cpp \
     src/sma_detector.cpp \
     src/sma_inverter.cpp \
-    src/sma_updater.cpp
+    src/sma_updater.cpp \
+    src/pv_info.cpp
 
 HEADERS += \
     src/froniussolar_api.h \
@@ -113,7 +114,8 @@ HEADERS += \
     src/data_processor.h \
     src/sma_detector.h \
     src/sma_inverter.h \
-    src/sma_updater.h
+    src/sma_updater.h \
+    src/pv_info.h
 
 DISTFILES += \
     ../README.md

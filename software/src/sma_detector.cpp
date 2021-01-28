@@ -4,7 +4,6 @@
 #include "modbus_reply.h"
 #include "settings.h"
 #include "sma_detector.h"
-//#include "sma_tools.h"
 
 SMADetector::SMADetector(QObject *parent):
     AbstractDetector(parent)
@@ -30,7 +29,7 @@ DetectorReply *SMADetector::start(const QString &hostName, int timeout)
     reply->di.hostName = hostName;
     mClientToReply[client] = reply;
 
-    QLOG_INFO() << "SMADetector::start";
+    QLOG_DEBUG() << "SMADetector start";
     return reply;
 }
 
@@ -39,7 +38,9 @@ void SMADetector::onConnected()
     ModbusTcpClient *client = static_cast<ModbusTcpClient *>(sender());
     Reply *di = mClientToReply.value(client);
     Q_ASSERT(di != 0);
-    QLOG_INFO() << "SMADetector::onConnected to " << client->hostName() << " @" << client->portName();
+
+    QLOG_DEBUG() << "SMADetector connected to " << client->hostName() << " @" << client->portName();
+
     di->state = Reply::ReadDeviceClass;
     di->currentRegister = 30051;
     startNextReadRequest(di, 2);
@@ -49,7 +50,9 @@ void SMADetector::onDisconnected()
 {
     ModbusTcpClient *client = static_cast<ModbusTcpClient *>(sender());
     Reply *di = mClientToReply.value(client);
-    QLOG_INFO() << "SMADetector::onDisconnected";
+
+    QLOG_DEBUG() << "SMADetector disconnected";
+
     if (di != 0)
         setDone(di);
 }
@@ -72,7 +75,8 @@ void SMADetector::onFinished()
 
             quint32 devclass = (values[0] << 16) | values[1];
             if (devclass != 8001) {
-                QLOG_INFO() << "SMADetector::OnFinnished device class not supported: " << devclass;
+                QLOG_ERROR() << "SMADetector device class not supported: " << devclass;
+
                 setDone(di);
                 return;
             }
@@ -92,25 +96,25 @@ void SMADetector::onFinished()
             quint32 modelId = (values[0] << 16) | values[1];
             di->di.deviceType = modelId;
             di->di.phaseCount = 1;
-            di->di.retrievalMode = ProtocolSMAPVReadOnly;
+            di->di.retrievalMode = ProtocolSMA;
             di->di.productId = VE_PROD_ID_PV_INVERTER_SMA;
 
             switch (modelId) {
             case 9074: // SB 3000TL-21
-                di->di.productName = QString("%1 %2").arg("SMA").arg("SB 3000TL-21");
+                di->di.productName = QString("SMA %1").arg("SunnyBoy 3000TL-21");
                 break;
             case 9075: // SB 4000TL-21
-                di->di.productName = QString("%1 %2").arg("SMA").arg("SB 4000TL-21");
+                di->di.productName = QString("SMA %1").arg("SunnyBoy 4000TL-21");
                 break;
             case 9076: // SB 5000TL-21
-                di->di.productName = QString("%1 %2").arg("SMA").arg("SB 5000TL-21");
+                di->di.productName = QString("SMA %1").arg("SunnyBoy 5000TL-21");
                 break;
             case 9165: // SB 3600TL-21
-                di->di.productName = QString("%1 %2").arg("SMA").arg("SB 3600TL-21");
+                di->di.productName = QString("SMA %1").arg("SunnyBoy 3600TL-21");
                 break;
 
             default:
-                QLOG_INFO() << "SMADetector::OnFinnished ReadDeviceType mode not supported: " << modelId;
+                QLOG_ERROR() << "SMADetector model not supported: " << modelId;
                 di->di.phaseCount = 0;
                 di->di.deviceType = -1;
                 di->di.productId = 0;
@@ -118,8 +122,7 @@ void SMADetector::onFinished()
                 return;
             }
 
-            QLOG_INFO() << "SMADetector::OnFinnished model" << di->di.productName;
-
+            QLOG_DEBUG() << "SMADetector found model: " << di->di.productName;
             di->currentRegister = 30057;
             di->state = Reply::ReadSerialNumber;
             startNextReadRequest(di, 2);
@@ -132,9 +135,11 @@ void SMADetector::onFinished()
                 return;
             }
             unsigned long sn = (values[0] << 16) | values[1];
-            di->di.serialNumber.setNum(sn);
+            di->di.uniqueId = di->di.serialNumber.setNum(sn);
+            di->di.firmwareVersion = "1.0.4";
+            di->di.storageCapacity = 0;
 
-            QLOG_INFO() << "SMADetector::OnFinnished serial number" << di->di.serialNumber;
+            QLOG_DEBUG() << "SMADetector serial number: " << di->di.serialNumber;
 
             di->currentRegister = 30059;
             di->state = Reply::ReadSoftwareVersion;
@@ -147,45 +152,31 @@ void SMADetector::onFinished()
                 setDone(di);
                 return;
             }
-            unsigned long softwarePackage = (values[0] << 16) | values[1];
 
-            QLOG_INFO() << "SMADetector::OnFinnished software version: " << softwarePackage;
+            quint8 major, minor, build, extra;
+            major = BCDtoByte((values[0] >> 8) & 0x00ff);
+            minor = BCDtoByte(values[0] & 0x00ff);
+            build = BCDtoByte((values[1] >> 8) & 0x00ff);
+            extra = BCDtoByte(values[1] & 0x00ff);
+            QChar t[6] = { 'N', 'E', 'A', 'B', 'R', 'S' };
+            QString vstr;
 
-            di->currentRegister = 40029;
-            di->state = Reply::ReadStatus;
-            startNextReadRequest(di, 2);
-            break;
-        }
-        case Reply::ReadStatus:
-        {
-            if (values.size() < 2) {
-                setDone(di);
-                return;
+            if(extra < 6) {
+                vstr = QString("%1.%2.%3.%4").arg(major).arg(minor).arg(build).arg(t[extra]);
             }
-            //di->di.softwarePackage = (values[0] << 16) | values[1];
-
-            QLOG_INFO() << "SMADetector::OnFinnished inverter status: " << values[1];
-
-            di->currentRegister = 40133;
-            di->state = Reply::ReadGridVoltageFrequency;
-            startNextReadRequest(di, 4);
-            break;
-        }
-        case Reply::ReadGridVoltageFrequency:
-        {
-            if (values.size() < 4) {
-                setDone(di);
-                return;
+            else {
+                vstr = QString("%1.%2.%3.%4").arg(major).arg(minor).arg(build).arg(extra);
             }
-            //di->di.softwarePackage = (values[0] << 16) | values[1];
 
-            QLOG_INFO() << "SMADetector::OnFinnished grid voltage: " << values[1] << " - grid frequency: " << values[3];
+
+            QLOG_DEBUG() << "SMADetector software version: " << vstr;
+            di->di.firmwareVersion = vstr;
 
             di->currentRegister = 30231;
             di->state = Reply::ReadMaxPower;
             startNextReadRequest(di, 2);
             break;
-        }
+        }       
         case Reply::ReadMaxPower:
         {
             if (values.size() < 2) {
@@ -194,7 +185,7 @@ void SMADetector::onFinished()
             }
 
             di->di.maxPower = values[1];
-            QLOG_INFO() << "SMADetector::OnFinnished Max Power" << di->di.maxPower;
+            QLOG_DEBUG() << "SMADetector Max Power: " << di->di.maxPower << " W";
 
             di->currentRegister = 30837;
             di->state = Reply::ReadPowerLimit;
@@ -208,117 +199,16 @@ void SMADetector::onFinished()
                 return;
             }
 
-            // set dummy value, not used
-            di->di.powerLimitScale = 10000;
-            QLOG_INFO() << "SMADetector::OnFinnished current power limit" << values[1];
+            // save our actual value here
+            di->di.powerLimitScale = values[1];
+            QLOG_DEBUG() << "SMADetector power limit: " << values[1] << " W";
 
-            di->currentRegister = 30835;
-            di->state = Reply::ReadOpMode;
-            startNextReadRequest(di, 2);
-            break;
-}
-        case Reply::ReadOpMode:
-        {
-            if (values.size() < 2) {
-                setDone(di);
-                return;
-            }
-
-            unsigned int opMode = values[1];
-
-            QLOG_INFO() << "SMADetector::OnFinnished operation mode" << opMode;
-
-            di->state = Reply::WriteGridCode;
-            di->retries = 0;
-            uint32_t gc = mSettings->gridCode();
-            QVector<quint16> vals;
-            quint16 gc0 = (gc >> 16) & 0xffff;
-            quint16 gc1 = gc & 0xffff;
-            vals.clear();
-            vals.append(gc0);
-            vals.append(gc1);
-
-            di->currentRegister = 43090;
-            startNextWriteRequest(di, vals);
-            break;
-        }
-        case Reply::WriteGridCode:
-        {
-            QLOG_INFO() << "SMADetector::OnFinnished grid code written" << mSettings->gridCode();
-            di->state = Reply::CheckGridCode;
-            startNextReadRequest(di, 2);
-            break;
-        }
-        case Reply::CheckGridCode:
-        {
-            if (values.size() < 2) {
-                setDone(di);
-                return;
-            }
-            QLOG_INFO() << "SMADetector::OnFinnished read grid code status" << values[0] << " lsb " << values[1];
-
-            if(values[1] != 1) {
-
-                if(di->retries < 3) {
-                    QLOG_INFO() << "SMADetector::OnFinnished write grid code retry";
-                    di->retries++;
-                    di->state = Reply::WriteGridCode;
-                    uint32_t gc = mSettings->gridCode();
-                    QVector<quint16> vals;
-                    quint16 gc0 = (gc >> 16) & 0xffff;
-                    quint16 gc1 = gc & 0xffff;
-                    vals.clear();
-                    vals.append(gc0);
-                    vals.append(gc1);
-
-                    di->currentRegister = 43090;
-                    startNextWriteRequest(di, vals);
-                    return;
-                }
-
-                QLOG_INFO() << "SMADetector::OnFinnished failed to log in, register in readonly mode";
-                di->setResult();
-                setDone(di);
-                return;
-            }
-
-            // we have full control over the inverter
-            QLOG_INFO() << "SMADetector::OnFinnished Gride Code is SET";
-            di->state = Reply::WriteOpMode;
-            QVector<quint16> values;
-            values.append(0);
-            values.append(1077);
-            di->currentRegister = 40210;
-            startNextWriteRequest(di, values);
-            break;
-        }
-        case Reply::WriteOpMode:
-        {
-            di->currentRegister = 40210;
-            di->state = Reply::CheckOpMode;
-            startNextReadRequest(di, 2);
-            break;
-        }
-        case Reply::CheckOpMode:
-        {
-            if (values.size() < 2) {
-                setDone(di);
-                return;
-            }
-            unsigned int opMode = values[1];
-            QLOG_INFO() << "SMADetector::OnFinnished checking op mode" << opMode;
-
-            if(opMode == 1077) {
-                QLOG_INFO() << "SMADetector::OnFinnished Op Mode OK!";
-                di->di.retrievalMode = ProtocolSMAPVReadWrite;
-            }
-            else {
-                QLOG_INFO() << "SMADetector::OnFinnished failed to set op mode!";
-            }
+            // finish the process
             di->setResult();
             setDone(di);
             break;
         }
+
         default:
             setDone(di);
     }
@@ -332,14 +222,6 @@ void SMADetector::startNextReadRequest(Reply *di, quint16 regCount)
     connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
 }
 
-void SMADetector::startNextWriteRequest(Reply *di, const QVector<quint16> &values)
-{
-    ModbusReply *reply = di->client->writeMultipleHoldingRegisters(di->di.networkId, di->currentRegister,
-                                                          values);
-    mModbusReplyToReply[reply] = di;
-    connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
-}
-
 void SMADetector::setDone(Reply *di)
 {
     if (!mClientToReply.contains(di->client))
@@ -348,7 +230,6 @@ void SMADetector::setDone(Reply *di)
     disconnect(di->client);
     mClientToReply.remove(di->client);
     di->client->deleteLater();
-    QLOG_INFO() << "SMADetector Done!";
 }
 
 SMADetector::Reply::Reply(QObject *parent):
@@ -357,6 +238,14 @@ SMADetector::Reply::Reply(QObject *parent):
     state(ReadDeviceClass),
     currentRegister(0)
 {
+}
+
+quint8 SMADetector::BCDtoByte(quint8 bcd)
+{
+    quint8 d = bcd & 0x0f;
+    bcd >>= 4;
+    d += bcd * 10;
+    return d;
 }
 
 SMADetector::Reply::~Reply()

@@ -9,6 +9,7 @@
 #include "sunspec_updater.h"
 #include "inverter_settings.h"
 #include "solar_api_updater.h"
+#include "sma_updater.h"
 #include "settings.h"
 #include "ve_qitem_init_monitor.h"
 
@@ -94,12 +95,11 @@ void InverterMediator::onSettingsInitialized()
 	 * access to it. */
 	mInverterSettings->setPhaseCount(mDeviceInfo.phaseCount);
 	mInverterSettings->setSerialNumber(
-		mDeviceInfo.serialNumber.isEmpty() ? mDeviceInfo.uniqueId : mDeviceInfo.serialNumber);
+    mDeviceInfo.serialNumber.isEmpty() ? mDeviceInfo.uniqueId : mDeviceInfo.serialNumber);
 
 	Q_ASSERT(mInverter == 0);
 	mInverter = createInverter();
 	if (mInverter) {
-		QLOG_INFO() << "New inverter:" << mInverter->location();
 		startAcquisition();
 		onSettingsCustomNameChanged();
 	}
@@ -112,7 +112,6 @@ void InverterMediator::onIsActivatedChanged()
 	} else {
 		if (mInverter == 0)
 			return;
-		QLOG_INFO() << "Inverter deactivated:" << mInverter->location();
 		delete mInverter;
 		mInverter = 0;
 	}
@@ -170,8 +169,10 @@ void InverterMediator::startAcquisition()
 	if (mDeviceInfo.retrievalMode == ProtocolFroniusSolarApi) {
 		SolarApiUpdater *updater = new SolarApiUpdater(mInverter, mInverterSettings, mInverter);
 		connect(updater, SIGNAL(connectionLost()), this, SLOT(onConnectionLost()));
-    } else if((mDeviceInfo.retrievalMode == ProtocolSMAPVReadOnly) || (mDeviceInfo.retrievalMode == ProtocolSMAPVReadWrite)) {
-        QLOG_INFO() << "Start Acquisition SMA";
+    } else if(mDeviceInfo.retrievalMode == ProtocolSMA) {
+        SMAUpdater *updater = new SMAUpdater((SMAInverter *)mInverter, mInverterSettings, mInverter);
+        connect(updater, SIGNAL(connectionLost()), this, SLOT(onConnectionLost()));
+        connect(updater, SIGNAL(inverterModelChanged()), this, SLOT(onInverterModelChanged()));
     } else {
 		SunspecUpdater *updater = new SunspecUpdater(mInverter, mInverterSettings, mInverter);
 		connect(updater, SIGNAL(connectionLost()), this, SLOT(onConnectionLost()));
@@ -192,8 +193,7 @@ Inverter *InverterMediator::createInverter()
 		inverter = new FroniusInverter(root, mDeviceInfo, deviceInstance, this);
     } else if ((mDeviceInfo.retrievalMode == ProtocolSMA) && (mDeviceInfo.productId == VE_PROD_ID_PV_INVERTER_SMA)) {
         inverter = new SMAInverter(root, mDeviceInfo, deviceInstance, mSettings->unitId(), mSettings->gridCode(), this);
-    }
-    else {
+    } else {
 		inverter = new Inverter(root, mDeviceInfo, deviceInstance, this);
 	}
 	connect(inverter, SIGNAL(customNameChanged()), this, SLOT(onInverterCustomNameChanged()));

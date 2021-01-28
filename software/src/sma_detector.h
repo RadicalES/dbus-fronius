@@ -55,27 +55,19 @@ private:
             ReadDeviceType,
             ReadSerialNumber,
             ReadSoftwareVersion,
-            ReadStatus,
-            ReadGridVoltageFrequency,
             ReadMaxPower,
             ReadPowerLimit,
-            ReadOpMode,
-            WriteGridCode,
-            CheckGridCode,
-            WriteOpMode,
-            CheckOpMode,
         };
 
         DeviceInfo di;
         ModbusTcpClient *client;
         State state;
         quint16 currentRegister;
-        quint8 retries;
     };
 
     void startNextReadRequest(Reply *di, quint16 regCount);
-    void startNextWriteRequest(Reply *di, const QVector<quint16> &values);
     void setDone(Reply *di);
+    quint8 BCDtoByte(quint8 bcd);
 
     QHash<ModbusTcpClient *, Reply *> mClientToReply;
     QHash<ModbusReply *, Reply *> mModbusReplyToReply;

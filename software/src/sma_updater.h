@@ -17,7 +17,7 @@ class SMAUpdater : public QObject
 {
     Q_OBJECT
 public:
-    explicit SMAUpdater(Inverter *inverter, InverterSettings *settings, QObject *parent = 0);
+    explicit SMAUpdater(SMAInverter *inverter, InverterSettings *settings, QObject *parent = 0);
 
 signals:
     void connectionLost();
@@ -37,7 +37,7 @@ public slots:
 
     void onTimer();
 
-   // void onPhaseChanged();
+    void onPhaseChanged();
 
 private:
     enum ModbusState {
@@ -47,16 +47,16 @@ private:
         DoLogin,
         CheckOpMode,
         SetOpMode,
-
         ReadPowerYield,
         ReadACFrequency,
         ReadACCurrent,
         ReadACPowerAndVoltage,
-        ReadDCData1,
-        ReadDCData2,
-
+        ReadTemperature,
+        ReadPVData1,
+        ReadPVData2,
         ReadPowerLimit,
         WritePowerLimit,
+        Error,
         Idle
     };
 
@@ -76,8 +76,6 @@ private:
 
     void handleError();
 
-    ModbusState getInitState() const;
-
     uint64_t getDoubleULong(const QVector<quint16> &values, int offset);
     uint32_t getULong(const QVector<quint16> &values, int offset);
 
@@ -92,7 +90,9 @@ private:
     int mWriteCount;
     int mState;
     int mCondition;
+    int mOpMode;
     bool mWritePowerLimitRequested;
+    bool mWritePowerBootMax;
     bool mLoggedIn;
     CommonInverterData mInverterData;
 

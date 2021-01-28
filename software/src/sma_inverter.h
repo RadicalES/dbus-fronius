@@ -2,6 +2,7 @@
 #define SMA_INVERTER_H
 
 #include "inverter.h"
+#include "pv_info.h"
 #include <QObject>
 
 class SMAInverter : public Inverter
@@ -10,7 +11,13 @@ class SMAInverter : public Inverter
 public:
     SMAInverter(VeQItem *root, const DeviceInfo &deviceInfo, int deviceInstance, int unitId, uint32_t gridCode, QObject *parent = 0);
 
+    PvInfo *pvInfo1();
+
+    PvInfo *pvInfo2();
+
     void setStatusCode(int condition, int state);
+
+    void setTemperature(double degC);
 
     int unitId() const;
 
@@ -48,6 +55,11 @@ public:
     } OperatingMode;
 
 private:
+
+    PvInfo *mPvInfo1;
+    PvInfo *mPvInfo2;
+    VeQItem *mTemperature;
+
     uint32_t mGridCode;
     int mUnitId;
 };

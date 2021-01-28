@@ -129,8 +129,11 @@ void SunspecDetector::onFinished()
 				QString manufacturer = getString(values, 2, 16);
 				if (manufacturer == "Fronius")
 					di->di.productId = VE_PROD_ID_PV_INVERTER_FRONIUS;
-				else if (manufacturer == "SMA")
+                else if (manufacturer == "SMA") {
 					di->di.productId = VE_PROD_ID_PV_INVERTER_SMA;
+                    setDone(di);
+                    return;
+                }
 				else if (manufacturer == "ABB")
 					di->di.productId = VE_PROD_ID_PV_INVERTER_ABB;
 				else
@@ -148,14 +151,16 @@ void SunspecDetector::onFinished()
 			}
 			break;
 		case 120: // Nameplate ratings
-			if (values.size() > 4)
+            if (values.size() > 4) {
 				di->di.maxPower = getScaledValue(values, 3, 1, 4, false);
+            }
 			if (values.size() > 22)
 				di->di.storageCapacity = getScaledValue(values, 21, 1, 22, false);
 			break;
 		case 123: // Immediate controls
-			if (values.size() > 23)
+            if (values.size() > 23) {
 				di->di.powerLimitScale = 100.0 / getScale(values, 23);
+            }
 			break;
 		}
 		di->currentRegister += 2 + values[1];

@@ -6,10 +6,23 @@ SMAInverter::SMAInverter(VeQItem *root, const DeviceInfo &deviceInfo,
                          int deviceInstance, int unitId, uint32_t gridCode,
                          QObject *parent) :
     Inverter(root, deviceInfo, deviceInstance, parent),
+    mPvInfo1(new PvInfo(root->itemGetOrCreate("Pv/0", false), this)),
+    mPvInfo2(new PvInfo(root->itemGetOrCreate("Pv/1", false), this)),
+    mTemperature(createItem("Temperature")),
     mGridCode(gridCode),
     mUnitId(unitId)
 {
     produceValue(createItem("SMADeviceType"), deviceInfo.deviceType);
+}
+
+PvInfo *SMAInverter::pvInfo1()
+{
+    return mPvInfo1;
+}
+
+PvInfo *SMAInverter::pvInfo2()
+{
+    return mPvInfo2;
 }
 
 int SMAInverter::unitId() const
@@ -22,12 +35,16 @@ uint32_t SMAInverter::gridCode() const
     return mGridCode;
 }
 
+void SMAInverter::setTemperature(double degC)
+{
+    produceDouble(mTemperature, degC, 1, "deg C");
+}
+
+
 void SMAInverter::setStatusCode(int condition, int state)
 {
     QString text;
     int code = condition;
-
-    //text = QString("Startup %1/6").arg(code);
 
     if(condition == 35) { // FAULT
         text = "FAULT STATE";
@@ -38,37 +55,37 @@ void SMAInverter::setStatusCode(int condition, int state)
     else if((condition == 307) || (condition == 455)) { // OK or WARNING
         code = state;
         switch (state) {
-        case SMAMPP:
+        case SMA_OS_MPP:
             text = "RUNNING (MPPT)";
             break;
-        case SMAThrottled:
+        case SMA_OS_Throttled:
             text = "RUNNING (THROTTLED)";
             break;
-        case SMAStarted:
+        case SMA_OS_Started:
             text = "STARTED";
             break;
-        case SMAStopped:
+        case SMA_OS_Stopped:
             text = "STOPPED";
             break;
-        case SMADerating:
+        case SMA_OS_Derating:
             text = "DERATING";
             break;
-        case SMAShutdown:
+        case SMA_OS_Shutdown:
             text = "SHUTDOWN";
             break;
-        case SMAFault:
+        case SMA_OS_Fault:
             text = "FAULT";
             break;
-        case SMAWaitAC:
+        case SMA_OS_WaitAC:
             text = "WAITING FOR AC";
             break;
-        case SMAWaitPV:
+        case SMA_OS_WaitPV:
             text = "WAITING FOR PV";
             break;
-        case SMAConstVolt:
+        case SMA_OS_ConstVolt:
             text = "CONSTANT VOLTAGE";
             break;
-        case SMAStandAlone:
+        case SMA_OS_StandAlone:
             text = "STANDBY ALONE OPERATION";
             break;
 
