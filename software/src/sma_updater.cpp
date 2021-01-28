@@ -23,8 +23,7 @@ SMAUpdater::SMAUpdater(SMAInverter *inverter, InverterSettings *settings, QObjec
       mTimer(new QTimer(this)),
       mDataProcessor(new DataProcessor(inverter, settings, this)),
       mCurrentState(Idle),
-      mRetryCount(0),
-      mOpMode(SMAInverter::SMA_OM_INVALID)
+      mRetryCount(0)
 {
     Q_ASSERT(inverter != 0);
     connectModbusClient();
@@ -129,6 +128,9 @@ void SMAUpdater::startNextAction(ModbusState state)
 
     case Error:
         QLOG_ERROR() << "SMAUpdate in error state! Old state = " << prvstate;
+        mInverter->setStatus(SMAInverter::SMA_SC_ERROR);
+        mInverter->setOperatingCondition(SMAInverter::SMA_OC_FAULT);
+        mInverter->setOperatingState(SMAInverter::SMA_OS_Fault);
         break;
 
     default:
@@ -181,6 +183,7 @@ void SMAUpdater::handleError()
 void SMAUpdater::onReadCompleted()
 {
     ModbusReply *reply = static_cast<ModbusReply *>(sender());
+
     reply->deleteLater();
     if (!handleModbusError(reply))
         return;
@@ -205,21 +208,22 @@ void SMAUpdater::onReadCompleted()
         mInverterData.acVoltage = 0.0;
 
         // save condition
-        mCondition = values[1];
+        mInverter->setOperatingCondition((SMAInverter::OperatingCondition_t)values[1]);
         nextState = CheckState;
 
-        QLOG_DEBUG() << "SMAUpdater Condition: " << mCondition;
+        QLOG_DEBUG() << "SMAUpdater Condition: " << mInverter->opCondition();
 
         // make sure the inverter is operational
-        if((mCondition != SMAInverter::SMA_OC_OK) && (mCondition != SMAInverter::SMA_OC_WARN)) {
+        if((mInverter->opCondition() != SMAInverter::SMA_OC_OK) && (mInverter->opCondition() != SMAInverter::SMA_OC_WARN)) {
             QLOG_INFO() << "SMAUpdater Condition SLEEP/FAULT";
-            mInverter->setStatusCode(mCondition, SMAInverter::SMA_OS_Fault);
-            mInverter->setErrorCode(mCondition);
+            mInverter->setStatus(SMAInverter::SMA_SC_ERROR);
+            mInverter->setError(values[1]);
             nextState = Idle;
         }
 
-        // no error
+        // clear error
         mInverter->setErrorCode(0);
+
         break;
     }
 
@@ -231,29 +235,30 @@ void SMAUpdater::onReadCompleted()
         }
 
         // save state
-        mState = values[1];
+        mInverter->setOperatingState((SMAInverter::OperatingState_t)values[1]);
 
         // set default state
         nextState = CheckLogin;
         mWriteCount = 0;
 
-        QLOG_DEBUG() << "SMAUpdater State: " << mState;
+        QLOG_DEBUG() << "SMAUpdater State: " << mInverter->opState();
 
         // invalid grid code, we operate in readonly mode
         if(mInverter->gridCode() == 0) {
             QLOG_DEBUG() << "SMAUpdater no valid Grid Code, in report only mode";
             nextState = ReadPowerYield;
+            mInverter->setStatusCode(SMAInverter::SMA_SC_STANDBY);
         }
 
-        // report inverter state
-        mInverter->setStatusCode(mCondition, mState);
 
-        if(mState != SMAInverter::SMA_OS_MPP) {
+        if(mInverter->opState() != SMAInverter::SMA_OS_MPP) {
             QLOG_DEBUG() << "SMAUpdater MPPT down, limited information is available";
             // inverter DC side is down, read yield and go idle
             // the other states will not work
-            nextState = ReadPowerYield;
+            nextState = ReadPowerYield;            
+            mInverter->setStatus(SMAInverter::SMA_SC_STANDBY);
         }
+
         break;
     }
 
@@ -265,14 +270,14 @@ void SMAUpdater::onReadCompleted()
         }
 
         // save login state
-        mLoggedIn = values[1] == 1;
+        mInverter->setLoggedOn(values[1] == 1);
 
         // set default next state
         nextState = CheckOpMode;
 
-        QLOG_DEBUG() << "SMAUpdater Login Status: " << mLoggedIn;
+        QLOG_DEBUG() << "SMAUpdater Login Status: " << mInverter->isLoggedIn();
 
-        if((!mLoggedIn) && (mWriteCount < 3)) {
+        if((!mInverter->isLoggedIn()) && (mWriteCount < 3)) {
             QLOG_INFO() << "SMAUpdater Login RETRY: count=" << mWriteCount;
             mWriteCount++;
             nextState = DoLogin;
@@ -281,6 +286,7 @@ void SMAUpdater::onReadCompleted()
             QLOG_INFO() << "SMAUpdater Login failed, REPORT ONLY";
             // we are readonly mode, grid code does not work
             nextState = ReadPowerYield;
+            mInverter->setStatus(SMAInverter::SMA_SC_STANDBY);
         }
 
         if(nextState == CheckOpMode) {
@@ -300,13 +306,23 @@ void SMAUpdater::onReadCompleted()
         // default next state
         nextState = ReadPowerYield;
 
-        mOpMode = values[1];
-        QLOG_DEBUG() << "SMAUpdater Operating Mode: " << mOpMode;
+        mInverter->setOperatingMode((SMAInverter::OperatingMode_t)values[1]);
+        QLOG_DEBUG() << "SMAUpdater Operating Mode: " << mInverter->opMode();
 
-        if((mOpMode != SMAInverter::SMA_OM_WATT) && (mWriteCount < 3)) {
+        if((mInverter->opMode() != SMAInverter::SMA_OM_WATT) && (mWriteCount < 3)) {
             QLOG_INFO() << "SMAUpdater update operating mode (retry=" << mWriteCount << ")";
             mWriteCount++;
             nextState = SetOpMode;
+        }
+
+        // all is good to go for full power control
+        if(nextState == ReadPowerYield) {
+            if(mPowerLimitWatt == mInverter->deviceInfo().maxPower) {
+                mInverter->setStatus(SMAInverter::SMA_SC_MPPT);
+            }
+            else {
+                mInverter->setStatus(SMAInverter::SMA_SC_THROTTLED);
+            }
         }
 
         break;
@@ -330,8 +346,9 @@ void SMAUpdater::onReadCompleted()
         QLOG_DEBUG() << "SMAUpdater Power Yield: " << mInverterData.totalEnergy << " WH / " << mInverterData.dayEnergy << " WH";
 
         // if DC is off, go idle
-        if(mState != SMAInverter::SMA_OS_MPP) {
+        if(mInverter->opState() != SMAInverter::SMA_OS_MPP) {
             QLOG_DEBUG() << "SMAUpdater PV OFF, GO IDLE";
+            mInverter->setStatus(SMAInverter::SMA_SC_STANDBY);
             mDataProcessor->process(mInverterData);
             nextState = Idle;
         }
@@ -382,7 +399,7 @@ void SMAUpdater::onReadCompleted()
         ul = getULong(values, 8);
         mInverterData.acVoltage = ((double)ul) / 100.0;
 
-       QLOG_DEBUG() << "SMAUpdater AC Power And Voltage: " << mInverterData.acPower << " W / " << mInverterData.acVoltage << " V";
+        QLOG_DEBUG() << "SMAUpdater AC Power And Voltage: " << mInverterData.acPower << " W / " << mInverterData.acVoltage << " V";
 
         nextState = ReadTemperature;
         break;
@@ -472,8 +489,8 @@ void SMAUpdater::onReadCompleted()
         nextState = Idle;
 
         // if we are logged in and mode correct, we can control the inverter output
-        if((mLoggedIn) && (mOpMode == SMAInverter::SMA_OM_WATT)) {
-            nextState = WritePowerLimit;
+        if((mInverter->isLoggedIn()) && (mInverter->opMode() == SMAInverter::SMA_OM_WATT)) {
+           // nextState = WritePowerLimit;
         }
 
         break;
@@ -534,7 +551,7 @@ void SMAUpdater::onPowerLimitRequested(double value)
     if(value > maxpower) {
         value = maxpower;
         QLOG_WARN() << "SMAUpdater::onPowerLimitRequested Invalid Requested = " << value << " Max Value" << maxpower;
-    }
+    }    
 
     QLOG_INFO() << "SMAUpdater::onPowerLimitRequested" << value;
     mPowerLimitWatt = value;

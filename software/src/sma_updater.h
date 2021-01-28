@@ -85,15 +85,11 @@ private:
     QTimer *mTimer;
     DataProcessor *mDataProcessor;
     ModbusState mCurrentState;
-    uint16_t mPowerLimitWatt;
+    double mPowerLimitWatt;
     int mRetryCount;
     int mWriteCount;
-    int mState;
-    int mCondition;
-    int mOpMode;
     bool mWritePowerLimitRequested;
     bool mWritePowerBootMax;
-    bool mLoggedIn;
     CommonInverterData mInverterData;
 
 };
