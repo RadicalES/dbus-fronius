@@ -87,9 +87,10 @@ void SMAUpdater::startNextAction(ModbusState state)
 
     case WritePowerLimit:
     {
+        quint16 w = (quint16)mPowerLimitWatt;
         QVector<quint16> values;
         values.append(0);
-        values.append(mPowerLimitWatt);
+        values.append(w);
         writeMultipleHoldingRegisters(40212, values);
         break;
     }
@@ -490,7 +491,7 @@ void SMAUpdater::onReadCompleted()
 
         // if we are logged in and mode correct, we can control the inverter output
         if((mInverter->isLoggedIn()) && (mInverter->opMode() == SMAInverter::SMA_OM_WATT)) {
-           // nextState = WritePowerLimit;
+            nextState = WritePowerLimit;
         }
 
         break;
@@ -553,7 +554,7 @@ void SMAUpdater::onPowerLimitRequested(double value)
         QLOG_WARN() << "SMAUpdater::onPowerLimitRequested Invalid Requested = " << value << " Max Value" << maxpower;
     }    
 
-    QLOG_INFO() << "SMAUpdater::onPowerLimitRequested" << value;
+    QLOG_DEBUG() << "SMAUpdater::onPowerLimitRequested" << value;
     mPowerLimitWatt = value;
 }
 

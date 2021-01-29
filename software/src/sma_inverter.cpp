@@ -1,4 +1,5 @@
 
+#include <QsLog.h>
 #include "ve_service.h"
 #include "sma_inverter.h"
 
@@ -60,6 +61,9 @@ void SMAInverter::setStatus(StatusCode_t code)
     // only update velib when need to
     if(mStatus != code) {
         mStatus = code;
+
+        QLOG_DEBUG() << "SMAInverter Status Code changed to " << code;
+
         setStatusCode(code);
     }
 }
@@ -86,9 +90,11 @@ void SMAInverter::setLoggedOn(bool status)
 
         if(mLoggedIn) {
             produceValue(mLoggedOn, 1, "LOGGED ON");
+            QLOG_DEBUG() << "SMAInverter LOGGED IN";
         }
         else {
             produceValue(mLoggedOn, 0, "LOGGED OFF");
+            QLOG_DEBUG() << "SMAInverter LOGGED OFF";
         }
     }
 }
@@ -145,6 +151,8 @@ void SMAInverter::setOperatingState(OperatingState_t state)
         break;
     }
 
+    QLOG_DEBUG() << "SMAInverter Operating State Changed to " << text << " (" << state << ")";
+
     produceValue(mOperatingState, state, text);
 }
 
@@ -185,6 +193,8 @@ void SMAInverter::setOperatingCondition(OperatingCondition_t condition)
         break;
     }
 
+    QLOG_DEBUG() << "SMAInverter Operating Condition changed to " << text << " (" << condition << ")";
+
     produceValue(mOperatingCondition, condition, text);
 }
 
@@ -224,6 +234,8 @@ void SMAInverter::setOperatingMode(OperatingMode_t mode)
         text = "UNKNOWN (" + QString::number(mode) + ")";
         break;
     }
+
+    QLOG_DEBUG() << "SMAInverter Operating Mode changed to " << text << " (" << mode << ")";
 
     produceValue(mOperatingMode, mode, text);
 }
