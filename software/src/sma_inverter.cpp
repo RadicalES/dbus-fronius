@@ -10,6 +10,7 @@ SMAInverter::SMAInverter(VeQItem *root, const DeviceInfo &deviceInfo,
     mPvInfo1(new PvInfo(root->itemGetOrCreate("Pv/0", false), this)),
     mPvInfo2(new PvInfo(root->itemGetOrCreate("Pv/1", false), this)),
     mTemperature(createItem("Temperature")),
+    mFrequency(createItem("Ac/Frequency")),
     mOperatingMode(createItem("OperatingMode")),
     mOperatingState(createItem("OperatingState")),
     mOperatingCondition(createItem("OperatingCondition")),
@@ -20,7 +21,8 @@ SMAInverter::SMAInverter(VeQItem *root, const DeviceInfo &deviceInfo,
     mOpMode(SMA_OM_INVALID),
     mOpCondition(SMA_OC_INVALID),
     mOpState(SMA_OS_Invalid),
-    mLoggedIn(false)
+    mLoggedIn(false),
+    mFreqValue(0.0)
 {
     produceValue(createItem("SMADeviceType"), deviceInfo.deviceType);
     mFirmware = mDeviceInfo.firmwareVersion;
@@ -96,6 +98,14 @@ void SMAInverter::setLoggedOn(bool status)
             produceValue(mLoggedOn, 0, "LOGGED OFF");
             QLOG_DEBUG() << "SMAInverter LOGGED OFF";
         }
+    }
+}
+
+void SMAInverter::setFrequency(double value)
+{
+    if(value != mFreqValue) {
+        mFreqValue = value;
+        produceDouble(mFrequency, value, 1, "Hz");
     }
 }
 

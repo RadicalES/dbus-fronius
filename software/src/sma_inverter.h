@@ -62,6 +62,8 @@ public:
     OperatingCondition_t opCondition() const;
     OperatingMode_t opMode() const;
     bool isLoggedIn() const;
+    int unitId() const;
+    uint32_t gridCode() const;
 
     PvInfo *pvInfo1();
     PvInfo *pvInfo2();
@@ -72,15 +74,14 @@ public:
     void setStatus(StatusCode_t code);
     void setError(int error);
     void setLoggedOn(bool status);
-    int unitId() const;
-
-    uint32_t gridCode() const;
+    void setFrequency(double value);
 
 private:
 
     PvInfo *mPvInfo1;
     PvInfo *mPvInfo2;
     VeQItem *mTemperature;
+    VeQItem *mFrequency;
     VeQItem *mOperatingMode;
     VeQItem *mOperatingState;
     VeQItem *mOperatingCondition;
@@ -95,6 +96,7 @@ private:
     OperatingState_t mOpState;
     int mError;
     bool mLoggedIn;
+    double mFreqValue;
 
 };
 

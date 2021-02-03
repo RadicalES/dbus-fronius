@@ -57,6 +57,7 @@ void SMAUpdater::startNextAction(ModbusState state)
 
     case DoLogin:
     {
+        QLOG_INFO() << "Login with grid code: " << mInverter->gridCode();
         QVector<quint16> values;
         uint32_t gc = mInverter->gridCode();
         uint16_t gc0,gc1;
@@ -64,7 +65,7 @@ void SMAUpdater::startNextAction(ModbusState state)
         gc1 = gc & 0xffff;
         values.append(gc0);
         values.append(gc1);
-        writeMultipleHoldingRegisters(40210, values);
+        writeMultipleHoldingRegisters(43090, values);
         break;
     }
 
@@ -365,6 +366,7 @@ void SMAUpdater::onReadCompleted()
 
         uint32_t ul = getULong(values, 0);
         mInverterData.acFrequency = ((double)ul) / 100.0;
+        mInverter->setFrequency(mInverterData.acFrequency);
 
         QLOG_DEBUG() << "SMAUpdater AC Frequency: " << mInverterData.acFrequency;
 
